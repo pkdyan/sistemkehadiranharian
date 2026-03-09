@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Kehadiran PKD Yan</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* Smooth scrolling for list */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        .hidden-admin {
+            display: none !important;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen py-8 px-4 font-sans text-slate-800">
+
+    <!-- Main Container -->
+    <div class="max-w-md mx-auto bg-white rounded-2xl shadow-xl overflow-hidden md:max-w-lg border border-slate-200">
+        
+        <!-- Header Section -->
+        <div class="bg-gradient-to-r from-blue-600 to-blue-800 p-6 text-white text-center relative">
+            <div class="absolute top-4 right-4 opacity-20">
+                <i class="fas fa-hospital-user text-5xl"></i>
+            </div>
+            <h1 class="text-2xl font-bold tracking-wide relative z-10">Kehadiran Harian</h1>
+            <h2 class="text-lg font-medium text-blue-100 relative z-10">Staf PKD Aras 1</h2>
+            
+            <div class="mt-4 bg-white/20 rounded-lg p-2 backdrop-blur-sm inline-block">
+                <p id="dateDisplay" class="text-sm font-medium"></p>
+                <p id="timeDisplay" class="text-xs text-blue-100 mt-1"></p>
+            </div>
+            
+            <div class="mt-4">
+                <span id="statusDisplay" class="text-sm font-semibold px-4 py-1.5 rounded-full inline-flex items-center shadow-sm">
+                    <!-- Status will be injected here -->
+                </span>
+            </div>
+        </div>
+
+        <!-- Content Section -->
+        <div class="p-6">
+            
+            <!-- Input Form -->
+            <form id="attendanceForm" class="space-y-4">
+                <div class="relative">
+                    <label class="block text-slate-700 text-sm font-bold mb-2" for="name">
+                        <i class="fas fa-user-edit mr-1 text-blue-500"></i> Sila Masukkan Nama
+                    </label>
+                    <input type="text" id="name" required placeholder="Contoh: Syahrul Kacak" autocomplete="off"
+                        class="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-slate-50 focus:bg-white text-slate-700 outline-none shadow-inner mb-3">
+                    
+                    <!-- Autocomplete Suggestions -->
+                    <ul id="suggestionsList" class="absolute z-20 w-full bg-white border border-slate-200 rounded-lg shadow-xl -mt-2 hidden max-h-48 overflow-y-auto custom-scrollbar">
+                        <!-- Suggestions injected here -->
+                    </ul>
+                    
+                    <label class="block text-slate-700 text-sm font-bold mb-2" for="category">
+                        <i class="fas fa-tasks mr-1 text-blue-500"></i> Status Keberadaan
+                    </label>
+                    <select id="category" class="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-slate-50 focus:bg-white text-slate-700 outline-none shadow-inner appearance-none">
+                        <option value="HADIR">HADIR (Di Pejabat)</option>
+                        <option value="CUTI/EL">CUTI / EL</option>
+                        <option value="KURSUS/MEETING">KURSUS / MEETING</option>
+                        <option value="MC/TCA">MC / TCA</option>
+                        <option value="BEKERJA DI LAPANGAN">BEKERJA DI LAPANGAN</option>
+                        <option value="Off">OFF</option>
+                    </select>
+                </div>
+                <button type="submit" id="submitBtn" 
+                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 flex justify-center items-center">
+                    <i class="fas fa-save mr-2"></i> Kemaskini Status
+                </button>
+            </form>
+
+            <!-- Admin/Test Checkbox -->
+            <div class="mt-3 flex justify-end">
+                <label class="inline-flex items-center cursor-pointer group">
+                    <input type="checkbox" id="bypassTime" class="form-checkbox h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 transition duration-150 ease-in-out">
+                    <span class="ml-2 text-xs text-slate-400 group-hover:text-slate-600 transition-colors">Abaikan Had Masa 9AM</span>
+                </label>
+            </div>
+
+            <!-- Attendance List -->
+            <div class="mt-8 bg-slate-50 rounded-xl border border-slate-200 p-4">
+                <div class="flex justify-between items-center border-b border-slate-200 pb-3 mb-3">
+                    <h3 class="text-lg font-bold text-slate-800">
+                        <i class="fas fa-clipboard-list mr-2 text-blue-500"></i>Senarai Terkini
+                    </h3>
+                    <span class="bg-blue-100 text-blue-800 text-xs font-bold px-2.5 py-1 rounded-full">
+                        <span id="countDisplay">0</span> / 30
+                    </span>
+                </div>
+                
+                <div id="attendanceListContainer" class="space-y-4 max-h-72 overflow-y-auto custom-scrollbar pr-2 pb-2 text-sm">
+                    <!-- List items injected via JS categorized -->
+                </div>
+                
+                <div id="emptyState" class="text-center py-6 text-slate-400 hidden">
+                    <i class="fas fa-inbox text-3xl mb-2 opacity-50"></i>
+                    <p class="text-sm">Belum ada rekod dikemaskini hari ini.</p>
+                </div>
+            </div>
+
+            <!-- Action Buttons (Admin Only) -->
+            <div id="adminPanel" class="mt-6 flex space-x-3 hidden-admin">
+                <button id="whatsappBtn" 
+                    class="flex-1 bg-[#25D366] hover:bg-[#128C7E] text-white font-bold py-3 px-4 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 flex items-center justify-center">
+                    <i class="fab fa-whatsapp text-xl mr-2"></i> Hantar ke Group
+                </button>
+                <button id="resetBtn" title="Padam Senarai"
+                    class="bg-red-50 text-red-500 hover:bg-red-500 hover:text-white font-bold py-3 px-4 rounded-lg border border-red-200 hover:border-red-500 transition-all duration-300 flex items-center justify-center">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
+            </div>
+
+            <!-- Admin Login Button -->
+            <div id="adminLoginBtnWrapper" class="mt-6 text-center">
+                <button id="adminLoginBtn" class="text-xs text-slate-400 hover:text-slate-600 font-medium transition-colors">
+                    <i class="fas fa-lock mr-1"></i> Log Masuk Admin (Untuk Hantar WhatsApp)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-5 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-full shadow-2xl transition-all duration-300 translate-y-20 opacity-0 z-50 flex items-center">
+        <i id="toastIcon" class="fas mr-2"></i>
+        <span id="toastMsg" class="text-sm font-medium">Mesej</span>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirmModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-50 opacity-0 transition-opacity duration-300">
+        <div class="bg-white p-6 rounded-2xl shadow-2xl max-w-sm w-full mx-4 transform scale-95 transition-transform duration-300" id="confirmModalContent">
+            <div class="text-center">
+                <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+                    <i class="fas fa-exclamation-triangle text-red-600 text-xl"></i>
+                </div>
+                <h3 class="text-lg font-bold text-slate-900 mb-2">Padam Rekod Hari Ini?</h3>
+                <p class="text-sm text-slate-500 mb-6">Tindakan ini akan memadamkan semua senarai kehadiran untuk hari ini. Anda pasti?</p>
+            </div>
+            <div class="flex space-x-3">
+                <button id="cancelResetBtn" class="flex-1 py-2.5 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 font-medium transition-colors">Batal</button>
+                <button id="confirmResetBtn" class="flex-1 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium shadow-md shadow-red-200 transition-colors">Ya, Padam</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- KONFIGURASI SISTEM ---
+        const MAX_ATTENDEES = 30;
+        const CUTOFF_HOUR = 9; // 9 = 9:00 AM
+        const ADMIN_PIN = "1234"; // Tukar PIN admin di sini
+        const CATEGORIES = ["HADIR", "CUTI/EL", "KURSUS/MEETING", "MC/TCA", "BEKERJA DI LAPANGAN", "Off"];
+
+        // Senarai 30 Staf (Anda boleh tukar kepada nama penuh di sini nanti)
+        const STAFF_NAMES = [
+            "DR SURIANI BINTI NOOR AZAM ", "NOR ZAMANI BINTI SHARIF", "SITI KHADIJAH BINTI ARIFFIN", "AZLINA BINTI ARIFFIN", "MOHAMAD SHUKRI BIN OTHMAN",
+            "ASMA BINTI ABDULLAH", "NOR HAFIZIE AZLY BIN YACOB", "MOHAMAD NAZRI BIN HASSAN", "MOHD. SHAHIR BIN ISMAIL", "NOR AQILAH BINTI KARIM", "RAHIMAH BINTI MAHMUD",
+            "KHALIJAH BINTI ABDUL RASHID", "ISWARDI BIN ISMAIL", "NURALIA ILYANA BINTI IBRAHIM", "AHMAD FIKRI BIN ABU BAKAR", "SHARIFFAH IMAMAH BINTI HUSSEIN KAMAL ", "AZIZI BIN ABDULLAH",
+            "SYAHRUL MUNIR BIN SOBRI", "SITI AISHAH BINTI CHE 'ISHAK", "NOR AZIAH BINTI MOHD JUNUS", "MOHAMMAD AZRI BIN AYOUB", "MOHD HALMI BIN AHMAD ASRI", "ABDUL RAHMAN BIN DZULKIFLI", "JAMILAH BINTI HALIM@BAKAR",
+            "MUHAMMAD  ALIFF ASYRAFF BIN MOHD HAMDAN", "KAK MAH", "NORHANEZA BINTI MOHAMED", "SALWANI BINTI MD YUNUS", "FAIDZAL BIN AHMAD", "NORNATRAH BINTI OMAR"
+        ];
+
+        // --- STATE & INISIALISASI ---
+        let attendees = [];
+        let isAdmin = false;
+
+        // Fungsi Dapatkan Tarikh & Hari (Format Malaysia)
+        function getFormattedDateInfo() {
+            const now = new Date();
+            
+            // Format Tarikh: DD/MM/YYYY
+            const day = String(now.getDate()).padStart(2, '0');
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const year = now.getFullYear();
+            const dateStr = `${day}/${month}/${year}`;
+
+            // Format Hari: ISNIN, SELASA, etc.
+            const daysMalay = ["AHAD", "ISNIN", "SELASA", "RABU", "KHAMIS", "JUMAAT", "SABTU"];
+            const dayName = daysMalay[now.getDay()];
+
+            return { dateStr, dayName, now };
+        }
+
+        // Mulakan aplikasi
+        function initApp() {
+            checkAndLoadData();
+            updateClock();
+            setInterval(updateClock, 1000);
+            updateUI();
+            setupAutocomplete();
+            
+            // Periksa status masa setiap minit
+            setInterval(updateUI, 60000);
+        }
+
+        // --- LOGIK AUTOCOMPLETE PENCARIAN NAMA ---
+        function setupAutocomplete() {
+            const nameInput = document.getElementById('name');
+            const suggestionsList = document.getElementById('suggestionsList');
+
+            nameInput.addEventListener('input', function() {
+                const inputValue = this.value.toLowerCase();
+                suggestionsList.innerHTML = '';
+                
+                if (!inputValue) {
+                    suggestionsList.classList.add('hidden');
+                    return;
+                }
+
+                // Tapis nama yang padan dengan input
+                const filteredNames = STAFF_NAMES.filter(name => 
+                    name.toLowerCase().includes(inputValue)
+                );
+
+                if (filteredNames.length > 0) {
+                    suggestionsList.classList.remove('hidden');
+                    filteredNames.forEach(name => {
+                        const li = document.createElement('li');
+                        li.className = 'px-4 py-2.5 hover:bg-blue-50 cursor-pointer text-sm text-slate-700 border-b border-slate-50 last:border-0 transition-colors';
+                        
+                        // Boldkan huruf yang sepadan
+                        const regex = new RegExp(`(${inputValue})`, "gi");
+                        li.innerHTML = name.replace(regex, "<span class='font-bold text-blue-600'>$1</span>");
+                        
+                        // Apabila nama diklik
+                        li.addEventListener('click', () => {
+                            nameInput.value = name;
+                            suggestionsList.classList.add('hidden');
+                        });
+                        suggestionsList.appendChild(li);
+                    });
+                } else {
+                    suggestionsList.classList.add('hidden');
+                }
+            });
+
+            // Sembunyikan senarai bila klik di luar kotak input
+            document.addEventListener('click', function(e) {
+                if (e.target !== nameInput && e.target !== suggestionsList) {
+                    suggestionsList.classList.add('hidden');
+                }
+            });
+        }
+
+        // --- LOGIK DATA ---
+        function checkAndLoadData() {
+            const savedDate = localStorage.getItem('pkd_yan_date_v2');
+            const today = new Date().toDateString();
+
+            // Jika hari bertukar, reset senarai secara automatik
+            if (savedDate !== today) {
+                attendees = [];
+                localStorage.setItem('pkd_yan_attendees_v2', JSON.stringify(attendees));
+                localStorage.setItem('pkd_yan_date_v2', today);
+            } else {
+                const savedData = localStorage.getItem('pkd_yan_attendees_v2');
+                if (savedData) {
+                    attendees = JSON.parse(savedData);
+                }
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem('pkd_yan_attendees_v2', JSON.stringify(attendees));
+        }
+
+        // --- UI & MASA ---
+        function updateClock() {
+            const dateInfo = getFormattedDateInfo();
+            document.getElementById('dateDisplay').textContent = `${dateInfo.dayName}, ${dateInfo.dateStr}`;
+            document.getElementById('timeDisplay').textContent = dateInfo.now.toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        }
+
+        function updateUI() {
+            const countDisplay = document.getElementById('countDisplay');
+            const container = document.getElementById('attendanceListContainer');
+            const emptyState = document.getElementById('emptyState');
+            
+            // Kemaskini jumlah
+            countDisplay.textContent = attendees.length;
+
+            // Render senarai mengikut kategori
+            container.innerHTML = '';
+            if (attendees.length === 0) {
+                emptyState.classList.remove('hidden');
+                container.classList.add('hidden');
+            } else {
+                emptyState.classList.add('hidden');
+                container.classList.remove('hidden');
+                
+                CATEGORIES.forEach(cat => {
+                    const catAttendees = attendees.filter(a => a.category === cat);
+                    
+                    // Hanya tunjuk kategori yang ada orang ATAU jika itu HADIR (untuk visual)
+                    if (catAttendees.length > 0 || cat === 'HADIR') {
+                        let sectionHTML = `
+                            <div class="mb-4">
+                                <h4 class="font-bold text-slate-800 uppercase mb-2 text-xs bg-slate-200 inline-block px-2 py-1 rounded">${cat}</h4>
+                                <ul class="space-y-1 pl-1">
+                        `;
+                        
+                        if (catAttendees.length === 0) {
+                            sectionHTML += `<li class="text-slate-400 italic text-xs">- Tiada Rekod -</li>`;
+                        } else {
+                            catAttendees.forEach((att, index) => {
+                                sectionHTML += `
+                                    <li class="flex items-center justify-between bg-white p-2 rounded border border-slate-100 shadow-sm">
+                                        <div class="flex items-center">
+                                            <span class="text-slate-500 mr-2 font-medium w-4">${index + 1}.</span>
+                                            <span class="font-semibold text-slate-700 capitalize">${att.name}</span>
+                                        </div>
+                                        <span class="text-[10px] text-slate-400">${att.time}</span>
+                                    </li>
+                                `;
+                            });
+                        }
+                        
+                        sectionHTML += `</ul></div>`;
+                        container.innerHTML += sectionHTML;
+                    }
+                });
+            }
+
+            checkStatusLimits();
+        }
+
+        function checkStatusLimits() {
+            const now = new Date();
+            const hour = now.getHours();
+            const bypassMode = document.getElementById('bypassTime').checked;
+            
+            let isClosed = false;
+            let statusText = "<i class='fas fa-door-open mr-2'></i> Sistem Dibuka";
+            let statusClasses = "bg-green-500 text-white";
+
+            if (!bypassMode && hour >= CUTOFF_HOUR) {
+                isClosed = true;
+                statusText = "<i class='fas fa-clock mr-2'></i> Ditutup (Melebihi 9:00 Pagi)";
+                statusClasses = "bg-red-500 text-white";
+            } else if (attendees.length >= MAX_ATTENDEES) {
+                isClosed = true;
+                statusText = "<i class='fas fa-ban mr-2'></i> Ditutup (Kuota Penuh)";
+                statusClasses = "bg-orange-500 text-white";
+            }
+
+            // Kemaskini Badge
+            const statusBadge = document.getElementById('statusDisplay');
+            statusBadge.innerHTML = statusText;
+            statusBadge.className = `text-sm font-semibold px-4 py-1.5 rounded-full inline-flex items-center shadow-sm ${statusClasses}`;
+
+            // Kawal Input & Butang Submit
+            const nameInput = document.getElementById('name');
+            const categoryInput = document.getElementById('category');
+            const submitBtn = document.getElementById('submitBtn');
+            
+            nameInput.disabled = isClosed;
+            categoryInput.disabled = isClosed;
+            submitBtn.disabled = isClosed;
+
+            if (isClosed) {
+                nameInput.classList.add('bg-slate-100', 'cursor-not-allowed', 'opacity-60');
+                categoryInput.classList.add('bg-slate-100', 'cursor-not-allowed', 'opacity-60');
+                submitBtn.classList.replace('bg-blue-600', 'bg-slate-400');
+                submitBtn.classList.replace('hover:bg-blue-700', 'cursor-not-allowed');
+                submitBtn.classList.remove('hover:shadow-lg');
+            } else {
+                nameInput.classList.remove('bg-slate-100', 'cursor-not-allowed', 'opacity-60');
+                categoryInput.classList.remove('bg-slate-100', 'cursor-not-allowed', 'opacity-60');
+                submitBtn.classList.replace('bg-slate-400', 'bg-blue-600');
+                submitBtn.classList.replace('cursor-not-allowed', 'hover:bg-blue-700');
+                submitBtn.classList.add('hover:shadow-lg');
+            }
+        }
+
+        // --- INTERAKSI PENGGUNA ---
+        
+        // Apabila borang dihantar
+        document.getElementById('attendanceForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const nameInput = document.getElementById('name');
+            const categoryInput = document.getElementById('category');
+            
+            const nameValue = nameInput.value.trim();
+            const categoryValue = categoryInput.value;
+
+            // Cari jika nama sudah direkodkan
+            const existingIndex = attendees.findIndex(a => a.name.toLowerCase() === nameValue.toLowerCase());
+
+            if(existingIndex !== -1) {
+                // Jika sudah ada, kita KEMASKINI status dan masa terkininya
+                attendees[existingIndex].category = categoryValue;
+                attendees[existingIndex].time = new Date().toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit' });
+                showToast(`Status ${nameValue} dikemaskini kepada ${categoryValue}!`, 'success');
+            } else {
+                // Jika belum ada, dan kuota belum penuh, kita tambah baru
+                if (nameValue && attendees.length < MAX_ATTENDEES) {
+                    attendees.push({
+                        name: nameValue,
+                        category: categoryValue,
+                        time: new Date().toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit' })
+                    });
+                    showToast('Status berjaya direkodkan!', 'success');
+                } else if (attendees.length >= MAX_ATTENDEES) {
+                    showToast('Kuota kehadiran penuh!', 'error');
+                    return;
+                }
+            }
+
+            // Simpan dan kemaskini paparan
+            saveData();
+            nameInput.value = '';
+            categoryInput.value = 'HADIR'; // Reset to default
+            updateUI();
+        });
+
+        // Apabila checkbox ujian ditekan
+        document.getElementById('bypassTime').addEventListener('change', updateUI);
+
+        // --- SISTEM ADMIN ---
+        document.getElementById('adminLoginBtn').addEventListener('click', () => {
+            const pin = prompt("Sila masukkan PIN Admin untuk membuka fungsi WhatsApp:");
+            if (pin === ADMIN_PIN) {
+                isAdmin = true;
+                document.getElementById('adminPanel').classList.remove('hidden-admin');
+                document.getElementById('adminLoginBtnWrapper').classList.add('hidden');
+                showToast('Mod Admin Diaktifkan', 'success');
+            } else if (pin !== null) {
+                showToast('PIN Salah!', 'error');
+            }
+        });
+
+        // Hantar ke WhatsApp (Format Serupa Gambar)
+        document.getElementById('whatsappBtn').addEventListener('click', () => {
+            const dateInfo = getFormattedDateInfo();
+            
+            let msg = `Maklumat kehadiran / keberadaan perlu diupdate sebelum jam 9.00 pg setiap hari.\n\n`;
+            msg += `Staf PKD Aras 1\n`;
+            msg += `Tarikh: *${dateInfo.dateStr}*\n`;
+            msg += `Hari: *${dateInfo.dayName}*\n`;
+            msg += `Total staff: *${MAX_ATTENDEES}*\n\n`;
+
+            // Bahagian HADIR
+            msg += `*HADIR*\n`;
+            const hadirList = attendees.filter(a => a.category === 'HADIR');
+            if (hadirList.length > 0) {
+                hadirList.forEach((a, index) => {
+                    msg += `  ${index + 1}. ${a.name}\n`;
+                });
+            } else {
+                msg += `\n`;
+            }
+            
+            msg += `\nStaff yg tiada di pejabat sila isikan maklumat\n\n`;
+
+            // Kategori Lain
+            const otherCategories = ["CUTI/EL", "KURSUS/MEETING", "MC/TCA", "BEKERJA DI LAPANGAN", "Off"];
+            otherCategories.forEach(cat => {
+                msg += `*${cat}*\n`;
+                const catList = attendees.filter(a => a.category === cat);
+                if (catList.length > 0) {
+                    catList.forEach((a, index) => {
+                        msg += `  ${index + 1}. ${a.name}\n`;
+                    });
+                } else {
+                    msg += `\n`; // Biar kosong mengikut format asal
+                }
+                msg += `\n`;
+            });
+
+            const encodedMessage = encodeURIComponent(msg);
+            window.open(`https://api.whatsapp.com/send?text=${encodedMessage}`, '_blank');
+        });
+
+        // --- SISTEM MODAL & TOAST ---
+        const modal = document.getElementById('confirmModal');
+        const modalContent = document.getElementById('confirmModalContent');
+
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                modalContent.classList.remove('scale-95');
+                modalContent.classList.add('scale-100');
+            }, 10);
+        });
+
+        function closeModal() {
+            modal.classList.add('opacity-0');
+            modalContent.classList.remove('scale-100');
+            modalContent.classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }, 300);
+        }
+
+        document.getElementById('cancelResetBtn').addEventListener('click', closeModal);
+        modal.addEventListener('click', (e) => {
+            if(e.target === modal) closeModal();
+        });
+
+        document.getElementById('confirmResetBtn').addEventListener('click', () => {
+            attendees = [];
+            saveData();
+            updateUI();
+            closeModal();
+            showToast('Senarai telah dikosongkan.', 'success');
+        });
+
+        function showToast(msg, type) {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toastMsg');
+            const toastIcon = document.getElementById('toastIcon');
+
+            toastMsg.textContent = msg;
+            
+            if (type === 'error') {
+                toast.classList.replace('bg-slate-800', 'bg-red-600');
+                toastIcon.className = 'fas fa-times-circle mr-2';
+            } else {
+                toast.classList.replace('bg-red-600', 'bg-slate-800');
+                toastIcon.className = 'fas fa-check-circle mr-2 text-green-400';
+            }
+
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+
+        // Jalankan sistem
+        initApp();
+
+    </script>
+</body>
+</html>
