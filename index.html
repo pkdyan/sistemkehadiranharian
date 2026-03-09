@@ -72,7 +72,7 @@
                     <label class="block text-slate-700 text-sm font-bold mb-2" for="category">
                         <i class="fas fa-tasks mr-1 text-blue-500"></i> Status Keberadaan
                     </label>
-                    <select id="category" class="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-slate-50 focus:bg-white text-slate-700 outline-none shadow-inner appearance-none">
+                    <select id="category" class="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-slate-50 focus:bg-white text-slate-700 outline-none shadow-inner appearance-none mb-3">
                         <option value="HADIR">HADIR (Di Pejabat)</option>
                         <option value="CUTI/EL">CUTI / EL</option>
                         <option value="KURSUS/MEETING">KURSUS / MEETING</option>
@@ -80,7 +80,27 @@
                         <option value="BEKERJA DI LAPANGAN">BEKERJA DI LAPANGAN</option>
                         <option value="Off">OFF</option>
                     </select>
+
+                    <!-- Extra Fields (Catatan & Tempoh) - Initially Hidden -->
+                    <div id="extraFields" class="hidden space-y-3 mb-3 bg-blue-50/50 p-4 rounded-lg border border-blue-100">
+                        <div>
+                            <label class="block text-slate-700 text-xs font-bold mb-1" for="catatan">
+                                <i class="fas fa-sticky-note mr-1 text-blue-500"></i> Catatan (Pilihan)
+                            </label>
+                            <input type="text" id="catatan" placeholder="Cth: Demam / Mesyuarat di JKN"
+                                class="w-full px-3 py-2 text-sm rounded border border-slate-300 focus:ring-2 focus:ring-blue-500 transition-all duration-200 bg-white text-slate-700 outline-none shadow-inner">
+                        </div>
+                        <div>
+                            <label class="block text-slate-700 text-xs font-bold mb-1" for="endDate">
+                                <i class="fas fa-calendar-alt mr-1 text-blue-500"></i> Tempoh Sehingga (Pilihan)
+                            </label>
+                            <input type="date" id="endDate"
+                                class="w-full px-3 py-2 text-sm rounded border border-slate-300 focus:ring-2 focus:ring-blue-500 transition-all duration-200 bg-white text-slate-700 outline-none shadow-inner">
+                            <p class="text-[10px] text-slate-500 mt-1 italic">*Jika diisi, status ini kekal automatik sehingga tarikh ini.</p>
+                        </div>
+                    </div>
                 </div>
+                
                 <button type="submit" id="submitBtn" 
                     class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 flex justify-center items-center">
                     <i class="fas fa-save mr-2"></i> Kemaskini Status
@@ -100,6 +120,7 @@
                 <div class="flex justify-between items-center border-b border-slate-200 pb-3 mb-3">
                     <h3 class="text-lg font-bold text-slate-800">
                         <i class="fas fa-clipboard-list mr-2 text-blue-500"></i>Senarai Terkini
+                        <span id="loadingIndicator" class="ml-2 text-blue-600 text-xs hidden"><i class="fas fa-circle-notch fa-spin"></i> Syncing...</span>
                     </h3>
                     <span class="bg-blue-100 text-blue-800 text-xs font-bold px-2.5 py-1 rounded-full">
                         <span id="countDisplay">0</span> / 30
@@ -151,7 +172,7 @@
                     <i class="fas fa-exclamation-triangle text-red-600 text-xl"></i>
                 </div>
                 <h3 class="text-lg font-bold text-slate-900 mb-2">Padam Rekod Hari Ini?</h3>
-                <p class="text-sm text-slate-500 mb-6">Tindakan ini akan memadamkan semua senarai kehadiran untuk hari ini. Anda pasti?</p>
+                <p class="text-sm text-slate-500 mb-6">Tindakan ini akan memadamkan semua senarai kehadiran untuk hari ini di dalam Sistem. Log sejarah tidak akan dipadam. Anda pasti?</p>
             </div>
             <div class="flex space-x-3">
                 <button id="cancelResetBtn" class="flex-1 py-2.5 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 font-medium transition-colors">Batal</button>
@@ -161,13 +182,19 @@
     </div>
 
     <script>
-        // --- KONFIGURASI SISTEM ---
+        // ==========================================
+        // KONFIGURASI SISTEM
+        // ==========================================
+        // SILA MASUKKAN URL GOOGLE APPS SCRIPT ANDA DI SINI
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbymGb7dxfEFJO1CSyb__zh2C0fArIUn1U_6cBQBgCRkG_X7I_AdRZ4ivJMW7wXtDuml/exec"; 
+        // ==========================================
+
         const MAX_ATTENDEES = 30;
         const CUTOFF_HOUR = 9; // 9 = 9:00 AM
         const ADMIN_PIN = "1234"; // Tukar PIN admin di sini
         const CATEGORIES = ["HADIR", "CUTI/EL", "KURSUS/MEETING", "MC/TCA", "BEKERJA DI LAPANGAN", "Off"];
 
-        // Senarai 30 Staf (Anda boleh tukar kepada nama penuh di sini nanti)
+        // Senarai 30 Staf
         const STAFF_NAMES = [
             "DR SURIANI BINTI NOOR AZAM ", "NOR ZAMANI BINTI SHARIF", "SITI KHADIJAH BINTI ARIFFIN", "AZLINA BINTI ARIFFIN", "MOHAMAD SHUKRI BIN OTHMAN",
             "ASMA BINTI ABDULLAH", "NOR HAFIZIE AZLY BIN YACOB", "MOHAMAD NAZRI BIN HASSAN", "MOHD. SHAHIR BIN ISMAIL", "NOR AQILAH BINTI KARIM", "RAHIMAH BINTI MAHMUD",
@@ -183,30 +210,87 @@
         // Fungsi Dapatkan Tarikh & Hari (Format Malaysia)
         function getFormattedDateInfo() {
             const now = new Date();
-            
-            // Format Tarikh: DD/MM/YYYY
             const day = String(now.getDate()).padStart(2, '0');
             const month = String(now.getMonth() + 1).padStart(2, '0');
             const year = now.getFullYear();
             const dateStr = `${day}/${month}/${year}`;
-
-            // Format Hari: ISNIN, SELASA, etc.
             const daysMalay = ["AHAD", "ISNIN", "SELASA", "RABU", "KHAMIS", "JUMAAT", "SABTU"];
             const dayName = daysMalay[now.getDay()];
-
             return { dateStr, dayName, now };
+        }
+
+        // Helper Tukar Format Tarikh (Dibaiki: Kenali Data dari Google Sheets / Sistem)
+        function formatDateToMY(dateStr) {
+            if(!dateStr) return '';
+            try {
+                // Periksa jika format standard "YYYY-MM-DD" (dari input box form)
+                if (typeof dateStr === 'string' && dateStr.length === 10 && dateStr.includes('-')) {
+                    const parts = dateStr.split('-');
+                    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+                }
+                
+                // Jika format ISO dari Google Sheets (cth: 2026-03-11T16:00:00.000Z)
+                const d = new Date(dateStr);
+                if (!isNaN(d.getTime())) {
+                    const day = String(d.getDate()).padStart(2, '0');
+                    const month = String(d.getMonth() + 1).padStart(2, '0');
+                    const year = d.getFullYear();
+                    return `${day}/${month}/${year}`;
+                }
+            } catch(e) {
+                console.error("Format date error:", e);
+            }
+            return dateStr; // Fallback asal
+        }
+
+        // Helper Bandingkan Tarikh Hari Ini vs Google Sheets Date
+        function isSameDay(dateStr, todayObj) {
+            if (!dateStr) return false;
+            try {
+                const d = new Date(dateStr);
+                return d.getDate() === todayObj.getDate() &&
+                       d.getMonth() === todayObj.getMonth() &&
+                       d.getFullYear() === todayObj.getFullYear();
+            } catch (e) {
+                return false;
+            }
         }
 
         // Mulakan aplikasi
         function initApp() {
-            checkAndLoadData();
+            loadDataFromServer();
             updateClock();
             setInterval(updateClock, 1000);
             updateUI();
             setupAutocomplete();
+            setupCategoryListener();
             
-            // Periksa status masa setiap minit
-            setInterval(updateUI, 60000);
+            // Set min date for date picker ke hari ini
+            const todayStr = new Date().toISOString().split('T')[0];
+            document.getElementById('endDate').setAttribute('min', todayStr);
+            
+            // Periksa status masa dan Refresh data dari server setiap 30 saat
+            setInterval(() => {
+                updateUI();
+                loadDataFromServer(true); // silent refresh (tidak tunjuk loading text)
+            }, 30000);
+        }
+
+        // --- LOGIK KATEGORI & FIELD TAMBAHAN ---
+        function setupCategoryListener() {
+            const categorySelect = document.getElementById('category');
+            const extraFields = document.getElementById('extraFields');
+            
+            categorySelect.addEventListener('change', function() {
+                if (this.value !== 'HADIR') {
+                    extraFields.classList.remove('hidden');
+                } else {
+                    extraFields.classList.add('hidden');
+                    // Reset fields if user selects HADIR again
+                    document.getElementById('catatan').value = '';
+                    document.getElementById('endDate').value = '';
+                }
+            });
         }
 
         // --- LOGIK AUTOCOMPLETE PENCARIAN NAMA ---
@@ -223,7 +307,6 @@
                     return;
                 }
 
-                // Tapis nama yang padan dengan input
                 const filteredNames = STAFF_NAMES.filter(name => 
                     name.toLowerCase().includes(inputValue)
                 );
@@ -234,11 +317,9 @@
                         const li = document.createElement('li');
                         li.className = 'px-4 py-2.5 hover:bg-blue-50 cursor-pointer text-sm text-slate-700 border-b border-slate-50 last:border-0 transition-colors';
                         
-                        // Boldkan huruf yang sepadan
                         const regex = new RegExp(`(${inputValue})`, "gi");
                         li.innerHTML = name.replace(regex, "<span class='font-bold text-blue-600'>$1</span>");
                         
-                        // Apabila nama diklik
                         li.addEventListener('click', () => {
                             nameInput.value = name;
                             suggestionsList.classList.add('hidden');
@@ -250,7 +331,6 @@
                 }
             });
 
-            // Sembunyikan senarai bila klik di luar kotak input
             document.addEventListener('click', function(e) {
                 if (e.target !== nameInput && e.target !== suggestionsList) {
                     suggestionsList.classList.add('hidden');
@@ -258,26 +338,65 @@
             });
         }
 
-        // --- LOGIK DATA ---
-        function checkAndLoadData() {
-            const savedDate = localStorage.getItem('pkd_yan_date_v2');
-            const today = new Date().toDateString();
+        // --- LOGIK DATA GOOGLE SHEETS & CARRY FORWARD ---
+        async function loadDataFromServer(isSilent = false) {
+            if (SCRIPT_URL === "MASUKKAN_URL_WEB_APP_ANDA_DI_SINI") {
+                if(!isSilent) console.warn("Sila masukkan URL Apps Script pada SCRIPT_URL.");
+                return;
+            }
 
-            // Jika hari bertukar, reset senarai secara automatik
-            if (savedDate !== today) {
-                attendees = [];
-                localStorage.setItem('pkd_yan_attendees_v2', JSON.stringify(attendees));
-                localStorage.setItem('pkd_yan_date_v2', today);
-            } else {
-                const savedData = localStorage.getItem('pkd_yan_attendees_v2');
-                if (savedData) {
-                    attendees = JSON.parse(savedData);
+            if (!isSilent) document.getElementById('loadingIndicator').classList.remove('hidden');
+            
+            try {
+                const response = await fetch(SCRIPT_URL);
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    const today = new Date();
+                    const todayZero = new Date(today);
+                    todayZero.setHours(0, 0, 0, 0);
+
+                    // Tapis data dari pelayan: Buang yang bukan hari ini, kecuali yang ada 'Carry Forward'
+                    attendees = result.data.filter(a => {
+                        // Tapis Data Tarikh (Bug fixed: Match accurate Date, not exact String)
+                        if (isSameDay(a.dateToday, today)) return true;
+                        
+                        // Carry forward logic (Cuti sehingga X tarikh)
+                        if (a.category !== 'HADIR' && a.endDate) {
+                            const endDateObj = new Date(a.endDate);
+                            endDateObj.setHours(0, 0, 0, 0);
+                            return endDateObj >= todayZero; 
+                        }
+                        return false;
+                    });
+                    
+                    updateUI();
                 }
+            } catch (error) {
+                console.error("Ralat memuat turun dari pelayan:", error);
+            } finally {
+                if (!isSilent) document.getElementById('loadingIndicator').classList.add('hidden');
             }
         }
 
-        function saveData() {
-            localStorage.setItem('pkd_yan_attendees_v2', JSON.stringify(attendees));
+        async function sendDataToServer(action, payload) {
+            if (SCRIPT_URL === "MASUKKAN_URL_WEB_APP_ANDA_DI_SINI") {
+                showToast("Sila tetapkan SCRIPT_URL terlebih dahulu di dalam kod", "error");
+                return false;
+            }
+            try {
+                // Hantar data menggunakan POST
+                const response = await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({ action: action, payload: payload })
+                });
+                const result = await response.json();
+                return result.status === 'success';
+            } catch (e) {
+                console.error("Ralat menghantar ke pelayan:", e);
+                return false;
+            }
         }
 
         // --- UI & MASA ---
@@ -292,10 +411,8 @@
             const container = document.getElementById('attendanceListContainer');
             const emptyState = document.getElementById('emptyState');
             
-            // Kemaskini jumlah
             countDisplay.textContent = attendees.length;
 
-            // Render senarai mengikut kategori
             container.innerHTML = '';
             if (attendees.length === 0) {
                 emptyState.classList.remove('hidden');
@@ -307,25 +424,42 @@
                 CATEGORIES.forEach(cat => {
                     const catAttendees = attendees.filter(a => a.category === cat);
                     
-                    // Hanya tunjuk kategori yang ada orang ATAU jika itu HADIR (untuk visual)
                     if (catAttendees.length > 0 || cat === 'HADIR') {
                         let sectionHTML = `
                             <div class="mb-4">
                                 <h4 class="font-bold text-slate-800 uppercase mb-2 text-xs bg-slate-200 inline-block px-2 py-1 rounded">${cat}</h4>
-                                <ul class="space-y-1 pl-1">
+                                <ul class="space-y-1.5 pl-1">
                         `;
                         
                         if (catAttendees.length === 0) {
                             sectionHTML += `<li class="text-slate-400 italic text-xs">- Tiada Rekod -</li>`;
                         } else {
                             catAttendees.forEach((att, index) => {
-                                sectionHTML += `
-                                    <li class="flex items-center justify-between bg-white p-2 rounded border border-slate-100 shadow-sm">
-                                        <div class="flex items-center">
-                                            <span class="text-slate-500 mr-2 font-medium w-4">${index + 1}.</span>
-                                            <span class="font-semibold text-slate-700 capitalize">${att.name}</span>
+                                // Paparkan nota & tempoh jika ada
+                                let extraInfoHTML = '';
+                                if (att.category !== 'HADIR' && (att.catatan || att.endDate)) {
+                                    const noteArr = [];
+                                    if(att.catatan) noteArr.push(att.catatan);
+                                    if(att.endDate) noteArr.push(`Sehingga ${formatDateToMY(att.endDate)}`); // Format date function digunakan
+                                    
+                                    extraInfoHTML = `
+                                        <div class="text-[11px] text-blue-600 mt-1 flex items-start bg-blue-50 p-1.5 rounded">
+                                            <i class="fas fa-info-circle mt-0.5 mr-1.5"></i>
+                                            <span>${noteArr.join(' | ')}</span>
                                         </div>
-                                        <span class="text-[10px] text-slate-400">${att.time}</span>
+                                    `;
+                                }
+
+                                sectionHTML += `
+                                    <li class="flex flex-col bg-white p-2.5 rounded border border-slate-100 shadow-sm">
+                                        <div class="flex items-center justify-between">
+                                            <div class="flex items-center">
+                                                <span class="text-slate-400 mr-2 font-medium text-xs w-4">${index + 1}.</span>
+                                                <span class="font-semibold text-slate-700 capitalize text-sm">${att.name}</span>
+                                            </div>
+                                            <span class="text-[10px] text-slate-400 whitespace-nowrap ml-2">${att.time}</span>
+                                        </div>
+                                        ${extraInfoHTML}
                                     </li>
                                 `;
                             });
@@ -359,29 +493,33 @@
                 statusClasses = "bg-orange-500 text-white";
             }
 
-            // Kemaskini Badge
             const statusBadge = document.getElementById('statusDisplay');
             statusBadge.innerHTML = statusText;
             statusBadge.className = `text-sm font-semibold px-4 py-1.5 rounded-full inline-flex items-center shadow-sm ${statusClasses}`;
 
-            // Kawal Input & Butang Submit
             const nameInput = document.getElementById('name');
             const categoryInput = document.getElementById('category');
+            const catatanInput = document.getElementById('catatan');
+            const endDateInput = document.getElementById('endDate');
             const submitBtn = document.getElementById('submitBtn');
             
-            nameInput.disabled = isClosed;
-            categoryInput.disabled = isClosed;
-            submitBtn.disabled = isClosed;
-
+            const inputs = [nameInput, categoryInput, catatanInput, endDateInput];
+            
             if (isClosed) {
-                nameInput.classList.add('bg-slate-100', 'cursor-not-allowed', 'opacity-60');
-                categoryInput.classList.add('bg-slate-100', 'cursor-not-allowed', 'opacity-60');
+                inputs.forEach(el => {
+                    el.disabled = true;
+                    el.classList.add('bg-slate-100', 'cursor-not-allowed', 'opacity-60');
+                });
+                submitBtn.disabled = true;
                 submitBtn.classList.replace('bg-blue-600', 'bg-slate-400');
                 submitBtn.classList.replace('hover:bg-blue-700', 'cursor-not-allowed');
                 submitBtn.classList.remove('hover:shadow-lg');
             } else {
-                nameInput.classList.remove('bg-slate-100', 'cursor-not-allowed', 'opacity-60');
-                categoryInput.classList.remove('bg-slate-100', 'cursor-not-allowed', 'opacity-60');
+                inputs.forEach(el => {
+                    el.disabled = false;
+                    el.classList.remove('bg-slate-100', 'cursor-not-allowed', 'opacity-60');
+                });
+                submitBtn.disabled = false;
                 submitBtn.classList.replace('bg-slate-400', 'bg-blue-600');
                 submitBtn.classList.replace('cursor-not-allowed', 'hover:bg-blue-700');
                 submitBtn.classList.add('hover:shadow-lg');
@@ -389,50 +527,75 @@
         }
 
         // --- INTERAKSI PENGGUNA ---
-        
-        // Apabila borang dihantar
-        document.getElementById('attendanceForm').addEventListener('submit', (e) => {
+        document.getElementById('attendanceForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const nameInput = document.getElementById('name');
             const categoryInput = document.getElementById('category');
+            const catatanInput = document.getElementById('catatan');
+            const endDateInput = document.getElementById('endDate');
+            const submitBtn = document.getElementById('submitBtn');
             
             const nameValue = nameInput.value.trim();
             const categoryValue = categoryInput.value;
+            
+            // Dapatkan nilai tambahan hanya jika bukan HADIR
+            const catatanValue = categoryValue !== 'HADIR' ? catatanInput.value.trim() : '';
+            const endDateValue = categoryValue !== 'HADIR' ? endDateInput.value : '';
 
-            // Cari jika nama sudah direkodkan
-            const existingIndex = attendees.findIndex(a => a.name.toLowerCase() === nameValue.toLowerCase());
+            // 1. Tunjukkan state "Loading" pada butang submit
+            const originalBtnHtml = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Menyimpan...';
 
-            if(existingIndex !== -1) {
-                // Jika sudah ada, kita KEMASKINI status dan masa terkininya
-                attendees[existingIndex].category = categoryValue;
-                attendees[existingIndex].time = new Date().toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit' });
-                showToast(`Status ${nameValue} dikemaskini kepada ${categoryValue}!`, 'success');
-            } else {
-                // Jika belum ada, dan kuota belum penuh, kita tambah baru
-                if (nameValue && attendees.length < MAX_ATTENDEES) {
-                    attendees.push({
-                        name: nameValue,
-                        category: categoryValue,
-                        time: new Date().toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit' })
-                    });
-                    showToast('Status berjaya direkodkan!', 'success');
-                } else if (attendees.length >= MAX_ATTENDEES) {
-                    showToast('Kuota kehadiran penuh!', 'error');
-                    return;
+            const payload = {
+                name: nameValue,
+                category: categoryValue,
+                time: new Date().toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit' }),
+                catatan: catatanValue,
+                endDate: endDateValue,
+                // Guna tarikh ISO supaya sistem tak keliru apabila dihantar ke sheet
+                dateToday: new Date().toISOString() 
+            };
+
+            // 2. Hantar ke pelayan (Google Sheets)
+            const success = await sendDataToServer('update', payload);
+
+            if (success) {
+                // 3. Jika berjaya, kemaskini UI serta merta
+                const existingIndex = attendees.findIndex(a => a.name.toLowerCase() === nameValue.toLowerCase());
+
+                if(existingIndex !== -1) {
+                    attendees[existingIndex] = payload;
+                    showToast(`Status ${nameValue} berjaya dikemaskini!`, 'success');
+                } else {
+                    if (attendees.length < MAX_ATTENDEES) {
+                        attendees.push(payload);
+                        showToast('Status berjaya direkodkan!', 'success');
+                    } else {
+                        showToast('Kuota kehadiran penuh!', 'error');
+                    }
                 }
+
+                // Reset Borang
+                nameInput.value = '';
+                categoryInput.value = 'HADIR';
+                catatanInput.value = '';
+                endDateInput.value = '';
+                document.getElementById('extraFields').classList.add('hidden');
+                
+                updateUI();
+            } else {
+                showToast('Gagal berhubung dengan pangkalan data!', 'error');
             }
 
-            // Simpan dan kemaskini paparan
-            saveData();
-            nameInput.value = '';
-            categoryInput.value = 'HADIR'; // Reset to default
-            updateUI();
+            // Pulihkan butang
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnHtml;
         });
 
-        // Apabila checkbox ujian ditekan
         document.getElementById('bypassTime').addEventListener('change', updateUI);
 
-        // --- SISTEM ADMIN ---
+        // --- SISTEM ADMIN & WHATSAPP ---
         document.getElementById('adminLoginBtn').addEventListener('click', () => {
             const pin = prompt("Sila masukkan PIN Admin untuk membuka fungsi WhatsApp:");
             if (pin === ADMIN_PIN) {
@@ -445,7 +608,6 @@
             }
         });
 
-        // Hantar ke WhatsApp (Format Serupa Gambar)
         document.getElementById('whatsappBtn').addEventListener('click', () => {
             const dateInfo = getFormattedDateInfo();
             
@@ -455,7 +617,6 @@
             msg += `Hari: *${dateInfo.dayName}*\n`;
             msg += `Total staff: *${MAX_ATTENDEES}*\n\n`;
 
-            // Bahagian HADIR
             msg += `*HADIR*\n`;
             const hadirList = attendees.filter(a => a.category === 'HADIR');
             if (hadirList.length > 0) {
@@ -468,17 +629,22 @@
             
             msg += `\nStaff yg tiada di pejabat sila isikan maklumat\n\n`;
 
-            // Kategori Lain
             const otherCategories = ["CUTI/EL", "KURSUS/MEETING", "MC/TCA", "BEKERJA DI LAPANGAN", "Off"];
             otherCategories.forEach(cat => {
                 msg += `*${cat}*\n`;
                 const catList = attendees.filter(a => a.category === cat);
                 if (catList.length > 0) {
                     catList.forEach((a, index) => {
-                        msg += `  ${index + 1}. ${a.name}\n`;
+                        // Letakkan nota di hujung nama
+                        let noteArr = [];
+                        if(a.catatan) noteArr.push(a.catatan);
+                        if(a.endDate) noteArr.push(`Hingga ${formatDateToMY(a.endDate)}`);
+                        
+                        let noteStr = noteArr.length > 0 ? ` [${noteArr.join(', ')}]` : '';
+                        msg += `  ${index + 1}. ${a.name}${noteStr}\n`;
                     });
                 } else {
-                    msg += `\n`; // Biar kosong mengikut format asal
+                    msg += `\n`; 
                 }
                 msg += `\n`;
             });
@@ -516,12 +682,20 @@
             if(e.target === modal) closeModal();
         });
 
-        document.getElementById('confirmResetBtn').addEventListener('click', () => {
-            attendees = [];
-            saveData();
-            updateUI();
+        document.getElementById('confirmResetBtn').addEventListener('click', async () => {
             closeModal();
-            showToast('Senarai telah dikosongkan.', 'success');
+            
+            // Beritahu Google Sheet untuk padam data 'Senarai Semasa'
+            showToast('Sedang memadam data...', 'success');
+            const success = await sendDataToServer('reset', {});
+            
+            if (success) {
+                attendees = [];
+                updateUI();
+                showToast('Senarai telah dikosongkan secara langsung.', 'success');
+            } else {
+                showToast('Gagal memadam data di pelayan!', 'error');
+            }
         });
 
         function showToast(msg, type) {
